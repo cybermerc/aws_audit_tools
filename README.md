@@ -1,13 +1,20 @@
 # AWS_audit
-AWS account audit lamdba tool
+AWS account audit lambda tool
 
 sudo-code:
 
-set a variable for number of days without login
-set a variable for number of days old for key  
+set variable for time account password has been inactive (time - last used) (variable A)
+set variable for time key can be active (time - creation date) (Variable B)
 
-get list of usernames
-determine date of last login of user
-get list of keys for each user (0-2)
-determine last login for each key
-report of things out of range
+get user list
+
+determine if password is set on account
+  - if last time utilized is over (variable A) add to list
+
+get list of keys per user (0-2)
+  - get creation date on all keys
+  - if creation date was over (Variable B) add to list
+
+Create email with list of:
+  - users with outdated passwords (username, password age)
+  - users with outdated keys (username, key, key age)
