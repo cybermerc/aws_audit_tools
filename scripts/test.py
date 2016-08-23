@@ -4,8 +4,10 @@ Parse users from IAM and verify that password and
 access key are less than X days old
 """
 
+from datetime import datetime
 import boto3
 import botocore
+import pytz
 
 client = boto3.client('iam')
 
@@ -44,3 +46,18 @@ def passwd_creation_date():
         except botocore.exceptions.ClientError:
             pass
     return d
+
+
+def get_passwd_age():
+    ''' print users with day count since password last used '''
+    d = {}
+    now = datetime.now(pytz.UTC)
+    plist = passwd_creation_date()
+    print(plist)
+    for i in plist:
+        age = now - plist[i]
+        d[i] = age.days
+    return d
+
+
+print(get_passwd_age())
