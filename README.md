@@ -1,5 +1,5 @@
-# AWS_audit
-AWS account audit lambda tool
+# aws audit tool
+AWS account audit tool - written into various lambda functions
 
 sudo-code:
 
