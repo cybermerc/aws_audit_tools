@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Parse users from IAM and report on passwords and
-access keys that are older than (variable X) days
+access keys that are older than 90 days
 """
 
 from datetime import datetime
@@ -11,11 +11,12 @@ import pytz
 
 client = boto3.client('iam')
 
-max_key_age = 90
-max_passwd_age = 90
+# base variables to modify as needed
+SNS_TOPIC = 'UserAudit'
+max_key_age = 9
+max_passwd_age = 9
 
 x = client.list_users()
-
 
 def user_list():
     ''' Create list of IAM users by username '''
@@ -132,6 +133,19 @@ def generate_report():
     report += ok
     return report
 
+def publish_report():
+    ''' Publish report to SNS topic '''
+    report = generate_report()
+    pub = boto3.client('sns')
+    resp = pub.list_topics()
+    topic_arn = ''
+    for topic in resp['Topics']:
+        if SNS_TOPIC in topic['TopicArn']:
+            topic_arn = topic['TopicArn']
+    if topic_arn == '':
+        raise "Topic %s not found" % SNS_TOPIC
+    pub.publish(TopicArn=topic_arn, Message=report)
+
+
 if __name__ == '__main__':
-    t = generate_report()
-    print t
+    publish_report()
