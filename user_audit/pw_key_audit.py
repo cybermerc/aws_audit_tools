@@ -147,5 +147,5 @@ def publish_report():
     pub.publish(TopicArn=topic_arn, Message=report)
 
 
-if __name__ == '__main__':
+def my_handler(event, context):
     publish_report()
