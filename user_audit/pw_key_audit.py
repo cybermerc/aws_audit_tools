@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""
+'''
 Parse users from IAM and report on passwords and
 access keys that are older than 90 days
-"""
+'''
 
 from datetime import datetime
 import boto3
@@ -12,29 +12,18 @@ import pytz
 client = boto3.client('iam')
 
 # base variables to modify as needed
-SNS_TOPIC = 'UserAudit'
+SNS_TOPIC = 'UserAuditTopic'
 max_key_age = 9
 max_passwd_age = 9
 
-x = client.list_users()
 
 def user_list():
     ''' Create list of IAM users by username '''
     a = []
+    x = client.list_users()
     for i in x['Users']:
         a.append(i['UserName'])
     return a
-
-
-def passwd_last_used():
-    '''
-    create dict of IAM accounts that have last used time stamp on password
-    '''
-    d = {}
-    for i in x['Users']:
-        if 'PasswordLastUsed' in i:
-            d[i['UserName']] = i['PasswordLastUsed']
-    return d
 
 
 def passwd_creation_date():
@@ -42,6 +31,7 @@ def passwd_creation_date():
     create dict of IAM accounts that have a password set, with date of creation
     '''
     d = {}
+    x = client.list_users()
     for i in x['Users']:
         try:
             r = client.get_login_profile(UserName=i['UserName'])
@@ -148,4 +138,5 @@ def publish_report():
 
 
 def my_handler(event, context):
+    ''' Lambda execute function '''
     publish_report()
