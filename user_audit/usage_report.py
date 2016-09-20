@@ -53,21 +53,37 @@ def passwd_last_utilized():
 
 
 def grab_key_list():
-    '''
-    grab access keys for all users and determine last time key was utilized
-    '''
+    ''' grab list of all keys for users '''
     d = {}
-    now = datetime.now(pytz.UTC)
     users = user_list()
     for i in users:
         g = client.list_access_keys(UserName=i)
         d[i] = []
         for e in g['AccessKeyMetadata']:
             if e['AccessKeyId']:
-                age = now - e['CreateDate']
-                d[i].append({e['AccessKeyId']: age.days})
+                d[i].append(e['AccessKeyId'])
+    return d
+
+
+def key_last_utilized():
+    '''
+    parse through list of all keys, determining last time key was utilized
+    '''
+    d = {}
+    now = datetime.now(pytz.UTC)
+    key_list = grab_key_list()
+    for keys, val in key_list.items():
+        print key_list.items()
+        for i in val:
+            g = client.get_access_key_last_used(AccessKeyId=i)
+            if 'LastUsedDate' in g['AccessKeyLastUsed']:
+                age = now - g['AccessKeyLastUsed']['LastUsedDate']
+                print keys, i, age.days
+                d[keys] = ({i: age.days})
+            else:
+                d[keys] = ({i: "Never"})
     return d
 
 
 if __name__ == '__main__':
-    print passwd_last_utilized()
+    print key_last_utilized()
