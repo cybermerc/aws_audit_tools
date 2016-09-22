@@ -42,7 +42,7 @@ def passwd_last_utilized():
                     age = now - s['User']['PasswordLastUsed']
                     d[i['UserName']] = age.days
                 else:
-                    d[i['UserName']] = 'Never'
+                    d[i['UserName']] = 'Never Used'
         except botocore.exceptions.ClientError as e:
             # if 'NoSuchEntity' then there is no password set, else raise error
             if 'NoSuchEntity' in e.response['Error']['Code']:
@@ -51,39 +51,87 @@ def passwd_last_utilized():
                 raise e
     return d
 
-
-def grab_key_list():
-    ''' grab list of all keys for users '''
+def old_passwds():
+    ''' Check passwd_list and flag all passwords older than X '''
+    passwd_list = passwd_last_utilized()
     d = {}
+    for key, val in passwd_list.items():
+        if val == 'Never Used':
+            d[key] = val
+        elif val > passwd_usage:
+            d[key] = val
+    return d
+
+
+def key_last_utilized():
+    ''' grab access keys for a list of users and determine last utilization '''
+    d = {}
+    now = datetime.now(pytz.UTC)
     users = user_list()
     for i in users:
         g = client.list_access_keys(UserName=i)
         d[i] = []
         for e in g['AccessKeyMetadata']:
             if e['AccessKeyId']:
-                d[i].append(e['AccessKeyId'])
+                r = client.get_access_key_last_used(AccessKeyId=e['AccessKeyId'])
+                if 'LastUsedDate' in r['AccessKeyLastUsed']:
+                    age = now - r['AccessKeyLastUsed']['LastUsedDate']
+                    d[i].append({e['AccessKeyId']: age.days})
+                else:
+                    d[i].append({e['AccessKeyId']: "Never Used"})
     return d
 
 
-def key_last_utilized():
-    '''
-    parse through list of all keys, determining last time key was utilized
-    '''
+def old_keys():
+    ''' Check list of user keys and flag all keys older than X '''
+    key_list = key_last_utilized()
     d = {}
-    now = datetime.now(pytz.UTC)
-    key_list = grab_key_list()
-    for keys, val in key_list.items():
-        print key_list.items()
-        for i in val:
-            g = client.get_access_key_last_used(AccessKeyId=i)
-            if 'LastUsedDate' in g['AccessKeyLastUsed']:
-                age = now - g['AccessKeyLastUsed']['LastUsedDate']
-                print keys, i, age.days
-                d[keys] = ({i: age.days})
-            else:
-                d[keys] = ({i: "Never"})
+    for key, val in key_list.items():
+        d[key] = []
+        for k in val:
+            for a, b in k.items():
+                if b == 'Never Used':
+                    d[key].append({a: b})
+                elif b > key_usage:
+                    d[key].append({a: b})
     return d
+
+
+def generate_passwd_report():
+    ''' Generate report of all passwords not utilized in X days '''
+    op = old_passwds()
+    op_text = "\n\nAccounts with passwords not utilized in "
+    op_text += str(passwd_usage) + " days"
+    op_text += "\nAccount name / Days since list utilization\n"
+    for k, v in op.items():
+        op_text += "\n" + k + " / " + str(v)
+    return op_text
+
+
+def generate_key_report():
+    ''' Generate report of all keys not utilized in X days '''
+    ok = old_keys()
+    ok_text = "\n\n\nAccounts with Keys not utilized in "
+    ok_text += str(key_usage) + " days"
+    ok_text += "\nAccount name / Key / Days since Key Used\n"
+    for key, val in ok.items():
+        for v in val:
+            for a, b in v.items():
+                ok_text += "\n" + str(key) + " / "
+                ok_text += str(a) + " / " + str(b)
+    return ok_text
+
+def generate_report():
+    ''' Create complete text of report '''
+    op = generate_passwd_report()
+    ok = generate_key_report()
+    report = "\nUser password and key Utilization report for "
+    report += datetime.now().strftime("%Y-%m-%d") + "\n"
+    report += op
+    report += ok
+    return report
 
 
 if __name__ == '__main__':
-    print key_last_utilized()
+    print generate_report()
+    #print old_keys()

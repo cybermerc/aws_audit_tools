@@ -12,7 +12,7 @@ import pytz
 client = boto3.client('iam')
 
 # base variables to modify as needed
-SNS_TOPIC = 'UserAuditTopic'
+SNS_TOPIC = 'UserAudit'
 max_key_age = 9
 max_passwd_age = 9
 
@@ -128,13 +128,14 @@ def publish_report():
     report = generate_report()
     pub = boto3.client('sns')
     resp = pub.list_topics()
+    msg_subject = 'Daily AWS password and key age report'
     topic_arn = ''
     for topic in resp['Topics']:
         if SNS_TOPIC in topic['TopicArn']:
             topic_arn = topic['TopicArn']
     if topic_arn == '':
         raise "Topic %s not found" % SNS_TOPIC
-    pub.publish(TopicArn=topic_arn, Message=report)
+    pub.publish(TopicArn=topic_arn, Subject=msg_subject, Message=report)
 
 
 def my_handler(event, context):
