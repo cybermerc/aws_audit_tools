@@ -52,7 +52,7 @@ def passwd_last_utilized():
     return d
 
 def old_passwds():
-    ''' Check passwd_list and flag all passwords older than X '''
+    ''' Check passwd_list and flag all passwords not used in X days '''
     passwd_list = passwd_last_utilized()
     d = {}
     for key, val in passwd_list.items():
@@ -83,7 +83,7 @@ def key_last_utilized():
 
 
 def old_keys():
-    ''' Check list of user keys and flag all keys older than X '''
+    ''' Check list of user keys and flag all keys not used in X days '''
     key_list = key_last_utilized()
     d = {}
     for key, val in key_list.items():
@@ -132,6 +132,21 @@ def generate_report():
     return report
 
 
-if __name__ == '__main__':
-    print generate_report()
-    #print old_keys()
+def publish_report():
+    ''' Publish report to SNS topic '''
+    report = generate_report()
+    pub = boto3.client('sns')
+    resp = pub.list_topics()
+    msg_subject = 'Daily AWS password and key usage report'
+    topic_arn = ''
+    for topic in resp['Topics']:
+        if SNS_TOPIC in topic['TopicArn']:
+            topic_arn = topic['TopicArn']
+    if topic_arn == '':
+        raise "Topic %s not found" % SNS_TOPIC
+    pub.publish(TopicArn=topic_arn, Subject=msg_subject, Message=report)
+
+
+def my_handler(event, context):
+    ''' Lambda execute function '''
+    publish_report()
