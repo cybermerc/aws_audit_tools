@@ -5,6 +5,9 @@ access keys that are older than 90 days
 '''
 
 from datetime import datetime
+import time
+import StringIO
+import csv
 import boto3
 import botocore
 import pytz
@@ -26,30 +29,44 @@ def user_list():
     return a
 
 
-def passwd_creation_date():
+def parse_report():
     '''
-    create dict of IAM accounts that have a password set, with date of creation
+    Grab IAM credential report and parse to grab data not available via boto3
+    specifically password_last_changed date for password age evaluation
     '''
-    d = {}
-    x = client.list_users()
-    for i in x['Users']:
+    report = None
+    while report is None:
         try:
-            r = client.get_login_profile(UserName=i['UserName'])
-            if 'CreateDate' in r['LoginProfile']:
-                d[i['UserName']] = r['LoginProfile']['CreateDate']
-        except botocore.exceptions.ClientError:
-            pass
-    return d
+            report = client.get_credential_report()
+        except botocore.exceptions.ClientError as e:
+            if 'ReportNotPresent' in e.message:
+                pass
+            else:
+                raise e
+            time.sleep(5)
+    document = StringIO.StringIO(report['Content'])
+    reader = csv.DictReader(document)
+    report_rows = []
+    for row in reader:
+        report_rows.append(row)
+    return report_rows
 
 
-def get_passwd_age():
-    ''' get users with day count since password last used '''
+def passwd_last_changed():
+    '''
+    Parse list of users with password enabled and determine one that have not
+    been changed in X days
+    '''
     d = {}
-    now = datetime.now(pytz.UTC)
-    plist = passwd_creation_date()
-    for i in plist:
-        age = now - plist[i]
-        d[i] = age.days
+    report = parse_report()
+    users = user_list()
+    now = datetime.now()
+    for user in users:
+        for row in report:
+            if row['user'] == user:
+                if row['password_enabled'] == 'true':
+                    age = now - datetime.strptime(row['password_last_changed'][:-15], "%Y-%m-%d")
+                    d[user] = age.days
     return d
 
 
@@ -70,7 +87,7 @@ def grab_key_list():
 
 def old_passwds():
     ''' Check passwd_list and flag all passwds older than X '''
-    passwd_list = get_passwd_age()
+    passwd_list = passwd_last_changed()
     d = {}
     for key, val in passwd_list.items():
         if val > max_passwd_age:
