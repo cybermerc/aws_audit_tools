@@ -22,10 +22,7 @@ max_passwd_age = 9
 
 def user_list():
     ''' Create list of IAM users by username '''
-    a = []
-    x = client.list_users()
-    for i in x['Users']:
-        a.append(i['UserName'])
+    a = [u['UserName'] for u in client.list_users()['Users']]
     return a
 
 
