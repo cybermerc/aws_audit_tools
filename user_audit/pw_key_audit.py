@@ -15,7 +15,7 @@ import pytz
 client = boto3.client('iam')
 
 # base variables to modify as needed
-SNS_TOPIC = 'UserAudit'
+SNS_TOPIC = 'Audit'
 max_key_age = 9
 max_passwd_age = 9
 
@@ -31,6 +31,7 @@ def parse_report():
     Grab IAM credential report and parse to grab data not available via boto3
     specifically password_last_changed date for password age evaluation
     '''
+    gen_cred_report = client.generate_credential_report()
     report = None
     while report is None:
         try:
